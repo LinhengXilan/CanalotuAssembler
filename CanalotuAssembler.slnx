@@ -1,0 +1,15 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/Example/">
+    <File Path="Example/Main.asm" />
+  </Folder>
+  <Folder Name="/解决方案项/">
+    <File Path=".clang-format" />
+    <File Path=".gitignore" />
+    <File Path="LICENSE" />
+    <File Path="README" />
+  </Folder>
+  <Project Path="Clasm/Clasm.vcxproj" Id="02e16a28-7cf8-4b66-9431-389ac25882ff" />
+</Solution>

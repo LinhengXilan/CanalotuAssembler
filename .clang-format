@@ -1,0 +1,17 @@
+---
+Language: Cpp
+BasedOnStyle: Microsoft
+IndentPPDirectives: BeforeHash	# 宏缩进
+ColumnLimit: 300	# 单行列数限制
+PointerAlignment: Left	# 指针符号对齐
+ReferenceAlignment: Left	# 引用符号对齐
+NamespaceIndentation: All	# 命名空间内缩进
+AlignAfterOpenBracket: AlwaysBreak	# 函数参数在左圆括号后立刻换行
+BinPackParameters: false	# 函数声明/定义的参数：false 表示要么全在同一行，要么每行一个
+BinPackArguments: false	# 函数调用的参数：同上
+UseTab: Always	# 始终使用 Tab
+AccessModifierOffset: -4	# 访问修饰符相对 class 的缩进偏移量
+AlignTrailingComments: false	# 不对齐///<
+TabWidth: 4	# Tab 宽度
+AllowShortFunctionsOnASingleLine: None	# 不要把短函数压缩在一行
+AlignConsecutiveAssignments: true	# 对齐符号
