@@ -3,4 +3,15 @@
   <PropertyGroup>
     <ShowAllFiles>true</ShowAllFiles>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LocalDebuggerCommandArguments>Main.asm -o Main.bin</LocalDebuggerCommandArguments>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArgumentsHistory>Main.asm -o Main.bin|</LocalDebuggerCommandArgumentsHistory>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Example\1</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LocalDebuggerCommandArguments>Main.asm -o Main.bin</LocalDebuggerCommandArguments>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Example\1</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
 </Project>

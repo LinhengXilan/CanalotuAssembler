@@ -14,4 +14,3 @@ AccessModifierOffset: -4	# 访问修饰符相对 class 的缩进偏移量
 AlignTrailingComments: false	# 不对齐///<
 TabWidth: 4	# Tab 宽度
 AllowShortFunctionsOnASingleLine: None	# 不要把短函数压缩在一行
-AlignConsecutiveAssignments: true	# 对齐符号
