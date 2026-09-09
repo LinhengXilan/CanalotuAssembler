@@ -1,15 +1,15 @@
 /**
  * @file Main.cpp
  * @author LinhengXilan
- * @version 0.0.0.2
- * @date 2026-9-6
+ * @version 0.0.0.3
+ * @date 2026-9-9
  */
 
-#include <iostream>
-#include <string>
 #include <Types.h>
 #include <fstream>
+#include <iostream>
 #include <map>
+#include <string>
 #include <vector>
 
 namespace
@@ -25,15 +25,15 @@ namespace
 
 	void PrintVersion()
 	{
-		std::cout << "Version 0.0.0 Build2" << std::endl;
+		std::cout << "Version 0.0.0 Build3" << std::endl;
 	}
 } // namespace
 
 namespace ErrorCode
 {
 	constexpr uint8 InvalidOption = 1;
-	constexpr uint8 NoInput		  = 2;
-}
+	constexpr uint8 NoInput = 2;
+} // namespace ErrorCode
 
 std::string inputFileName;
 std::string outputFileName;
@@ -82,32 +82,61 @@ enum class Register : uint8
 {
 	None,
 	AL, BL, CL, DL, AH, BH, CH, DH,
-	AX, BX, CX, DX, BP, SP, SI, DI,
+	AX,	BX,	CX,	DX,	BP,	SP,	SI,	DI,
 	CS, DS, SS, ES
 };
 
-std::map<Register, std::string> RegisterName = {
-	{Register::AL, "AL"},
-	{Register::BL, "BL"},
-	{Register::CL, "CL"},
-	{Register::DL, "DL"},
-	{Register::AH, "AH"},
-	{Register::BH, "BH"},
-	{Register::CH, "CH"},
-	{Register::DH, "DH"},
-	{Register::AX, "AX"},
-	{Register::BX, "BX"},
-	{Register::CX, "CX"},
-	{Register::DX, "DX"},
-	{Register::BP, "BP"},
-	{Register::SP, "SP"},
-	{Register::SI, "SI"},
-	{Register::DI, "DI"},
-	{Register::DS, "DS"},
-	{Register::CS, "CS"},
-	{Register::SS, "SS"},
-	{Register::ES, "ES"}
-};
+std::map<std::string, Register> RegisterMap = {{"al", Register::AL}, {"bl", Register::BL}, {"cl", Register::CL}, {"dl", Register::DL}, {"ah", Register::AH}, {"bh", Register::BH}, {"ch", Register::CH}, {"dh", Register::DH}, {"ax", Register::AX}, {"bx", Register::BX},
+												{"cx", Register::CX}, {"dx", Register::DX}, {"bp", Register::BP}, {"sp", Register::SP}, {"si", Register::SI}, {"di", Register::DI}, {"cs", Register::CS}, {"ds", Register::DS}, {"ss", Register::SS}, {"es", Register::ES}};
+
+std::string GetRegisterName(Register reg)
+{
+	switch (reg)
+	{
+	case Register::AL:
+		return "al";
+	case Register::BL:
+		return "bl";
+	case Register::CL:
+		return "cl";
+	case Register::DL:
+		return "dl";
+	case Register::AH:
+		return "ah";
+	case Register::BH:
+		return "bh";
+	case Register::CH:
+		return "ch";
+	case Register::DH:
+		return "dh";
+	case Register::AX:
+		return "ax";
+	case Register::BX:
+		return "bx";
+	case Register::CX:
+		return "cx";
+	case Register::DX:
+		return "dx";
+	case Register::BP:
+		return "bp";
+	case Register::SP:
+		return "sp";
+	case Register::SI:
+		return "si";
+	case Register::DI:
+		return "di";
+	case Register::CS:
+		return "cs";
+	case Register::DS:
+		return "ds";
+	case Register::SS:
+		return "ss";
+	case Register::ES:
+		return "es";
+	default:
+		return "Unknown Register";
+	}
+}
 
 enum class OperandType : uint8
 {
@@ -116,14 +145,29 @@ enum class OperandType : uint8
 	Memory
 };
 
-//struct Operand
-//{
-//	OperandType type;
-//	union
-//	{
-//		Word immediate;
-//	};
-//};
+struct Operand
+{
+	OperandType type;
+	union {
+		Register reg;
+		Word immediate = 0;
+	};
+};
+
+std::string GetOperandTypeName(const OperandType& type)
+{
+	switch (type)
+	{
+	case OperandType::Register:
+		return "Register";
+	case OperandType::Immediate:
+		return "Immediate";
+	case OperandType::Memory:
+		return "Memory";
+	default:
+		return "Unknown OperandType";
+	}
+}
 
 /**
  * @brief 将一行汇编拆分成token
@@ -160,6 +204,97 @@ std::vector<std::string> Tokenize(const std::string& line)
 	return tokens;
 }
 
+/**
+ * @brief 将字符串转换为数值
+ * 
+ * @param[in] str 字符串
+ * @param[out] value 数值
+ * @return 是否成功转换
+ */
+bool ParseImmediate(const std::string& str, Word& value)
+{
+	if (str.empty())
+	{
+		return false;
+	}
+	if (str.size() == 3 && str[0] == '\'' && str[3] == '\'')
+	{
+		value = static_cast<Byte>(str[1]);
+		return true;
+	}
+	if (str.size() > 2 || str[0] == '0')
+	{
+		if (str[1] == 'x')
+		{
+			std::string substr = str.substr(2);
+			try
+			{
+				value = static_cast<Word>(std::stoi(substr, nullptr, 16));
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+		else if (str[1] >= '1' && str[1] < '7')
+		{
+			std::string substr = str.substr(1);
+			try
+			{
+				value = static_cast<Word>(std::stoi(substr, nullptr, 8));
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+		else if (str[1] == 'b')
+		{
+			std::string substr = str.substr(2);
+			try
+			{
+				value = static_cast<Word>(std::stoi(substr, nullptr, 2));
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+		else
+		{
+			try
+			{
+				value = static_cast<Word>(std::stoi(str));
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+	}
+}
+
+Operand ParseOperand(const std::string& token)
+{
+	Operand operand;
+	auto it = RegisterMap.find(token);
+	if (it != RegisterMap.end())
+	{
+		operand.type = OperandType::Register;
+		operand.reg = it->second;
+		return operand;
+	}
+	Word immediate;
+	if (ParseImmediate(token, immediate))
+	{
+		operand.type = OperandType::Immediate;
+		operand.immediate = immediate;
+		std::cout << "immediate: " << immediate << std::endl;
+		return operand;
+	}
+	throw std::runtime_error("未知操作数: " + token);
+}
+
 int main(int argc, char** argv)
 {
 	uint8 errorCode = ParseCommand(argc, argv);
@@ -175,6 +310,7 @@ int main(int argc, char** argv)
 		return ErrorCode::NoInput;
 	}
 
+	std::vector<Operand> operands;
 	std::string line;
 	while (std::getline(ifs, line))
 	{
@@ -210,10 +346,20 @@ int main(int argc, char** argv)
 		{
 			std::cout << token << ' ';
 		}
+		std::cout << std::endl;
 		std::string mnemonic = tokens[0];
 		tokens.erase(tokens.begin());
 
-		/*std::vector<Operand> operands;*/
+		for (const auto& token : tokens)
+		{
+			operands.push_back(ParseOperand(token));
+		}
+	}
+
+	for (const auto& operand : operands)
+	{
+		std::cout << GetOperandTypeName(operand.type) << ' ' << (operand.type == OperandType::Register ? GetRegisterName(operand.reg) : std::to_string(operand.immediate));
+		std::cout << std::endl;
 	}
 
 	return errorCode;
