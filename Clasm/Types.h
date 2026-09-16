@@ -1,14 +1,15 @@
 /**
  * @file Types.h
  * @author LinhengXilan
- * @version 0.0.0.2
- * @date 2026-9-6
+ * @version 0.0.0.4
+ * @date 2026-9-16
  */
 
 #ifndef TYPES_H
 #define TYPES_H
 
 #include <cstdint>
+#include <vector>
 
 using int8 = int8_t;
 using int16 = int16_t;
@@ -23,4 +24,5 @@ using usize = size_t;
 using Byte = uint8;
 using Word = uint16;
 
+using Bytes = std::vector<Byte>;
 #endif

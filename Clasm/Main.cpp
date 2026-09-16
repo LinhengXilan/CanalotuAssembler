@@ -1,8 +1,8 @@
 /**
  * @file Main.cpp
  * @author LinhengXilan
- * @version 0.0.0.3
- * @date 2026-9-9
+ * @version 0.0.0.4
+ * @date 2026-9-16
  */
 
 #include <Types.h>
@@ -25,7 +25,7 @@ namespace
 
 	void PrintVersion()
 	{
-		std::cout << "Version 0.0.0 Build3" << std::endl;
+		std::cout << "Version 0.0.0 Build4" << std::endl;
 	}
 } // namespace
 
@@ -55,7 +55,15 @@ static uint8 ParseCommand(int argc, char** argv)
 				PrintHelp();
 				break;
 			case 'o':
-				outputFileName = argv[++i];
+				if (i + 1 < argc)
+				{
+					outputFileName = argv[++i];
+				}
+				else
+				{
+					std::cerr << "-o 没有参数: " << argv[i] << std::endl;
+					return ErrorCode::InvalidOption; 
+				}
 				break;
 			case 'v':
 				if (argv[i][2] != '\0')
@@ -81,13 +89,45 @@ static uint8 ParseCommand(int argc, char** argv)
 enum class Register : uint8
 {
 	None,
-	AL, BL, CL, DL, AH, BH, CH, DH,
-	AX,	BX,	CX,	DX,	BP,	SP,	SI,	DI,
-	CS, DS, SS, ES
+	AL,
+	CL,
+	DL,
+	BL,
+	AH,
+	CH,
+	DH,
+	BH,
+	AX,
+	CX,
+	DX,
+	BX,
+	SP,
+	BP,
+	SI,
+	DI,
+	ES,
+	CS,
+	SS,
+	DS
 };
 
+bool Is8bitRegister(Register reg)
+{
+	return reg >= Register::AL && reg <= Register::BH;
+}
+
+bool Is16bitRegister(Register reg)
+{
+	return reg >= Register::AX && reg <= Register::DI;
+}
+
+bool IsSegmentRegister(Register reg)
+{
+	return reg >= Register::ES && reg <= Register::DS;
+}
+
 std::map<std::string, Register> RegisterMap = {{"al", Register::AL}, {"bl", Register::BL}, {"cl", Register::CL}, {"dl", Register::DL}, {"ah", Register::AH}, {"bh", Register::BH}, {"ch", Register::CH}, {"dh", Register::DH}, {"ax", Register::AX}, {"bx", Register::BX},
-												{"cx", Register::CX}, {"dx", Register::DX}, {"bp", Register::BP}, {"sp", Register::SP}, {"si", Register::SI}, {"di", Register::DI}, {"cs", Register::CS}, {"ds", Register::DS}, {"ss", Register::SS}, {"es", Register::ES}};
+											   {"cx", Register::CX}, {"dx", Register::DX}, {"bp", Register::BP}, {"sp", Register::SP}, {"si", Register::SI}, {"di", Register::DI}, {"cs", Register::CS}, {"ds", Register::DS}, {"ss", Register::SS}, {"es", Register::ES}};
 
 std::string GetRegisterName(Register reg)
 {
@@ -206,7 +246,7 @@ std::vector<std::string> Tokenize(const std::string& line)
 
 /**
  * @brief 将字符串转换为数值
- * 
+ *
  * @param[in] str 字符串
  * @param[out] value 数值
  * @return 是否成功转换
@@ -215,14 +255,15 @@ bool ParseImmediate(const std::string& str, Word& value)
 {
 	if (str.empty())
 	{
+		value = 0;
 		return false;
 	}
-	if (str.size() == 3 && str[0] == '\'' && str[3] == '\'')
+	if (str.size() == 3 && str[0] == '\'' && str[2] == '\'')
 	{
 		value = static_cast<Byte>(str[1]);
 		return true;
 	}
-	if (str.size() > 2 || str[0] == '0')
+	if (str.size() > 2 && str[0] == '0')
 	{
 		if (str[1] == 'x')
 		{
@@ -230,47 +271,52 @@ bool ParseImmediate(const std::string& str, Word& value)
 			try
 			{
 				value = static_cast<Word>(std::stoi(substr, nullptr, 16));
+				return true;
 			}
 			catch (...)
 			{
+				value = 0;
 				return false;
 			}
 		}
-		else if (str[1] >= '1' && str[1] < '7')
+		if (str[1] >= '1' && str[1] <= '7')
 		{
 			std::string substr = str.substr(1);
 			try
 			{
 				value = static_cast<Word>(std::stoi(substr, nullptr, 8));
+				return true;
 			}
 			catch (...)
 			{
+				value = 0;
 				return false;
 			}
 		}
-		else if (str[1] == 'b')
+		if (str[1] == 'b')
 		{
 			std::string substr = str.substr(2);
 			try
 			{
 				value = static_cast<Word>(std::stoi(substr, nullptr, 2));
+				return true;
 			}
 			catch (...)
 			{
+				value = 0;
 				return false;
 			}
 		}
-		else
-		{
-			try
-			{
-				value = static_cast<Word>(std::stoi(str));
-			}
-			catch (...)
-			{
-				return false;
-			}
-		}
+	}
+	try
+	{
+		value = static_cast<Word>(std::stoi(str));
+		return true;
+	}
+	catch (...)
+	{
+		value = 0;
+		return false;
 	}
 }
 
@@ -295,9 +341,150 @@ Operand ParseOperand(const std::string& token)
 	throw std::runtime_error("未知操作数: " + token);
 }
 
+void EmitByte(Bytes& out, Byte value)
+{
+	out.push_back(value);
+}
+
+void EmitWord(Bytes& out, Word value)
+{
+	out.push_back(static_cast<Byte>(value & 0x00FF));
+	out.push_back(static_cast<Byte>(value >> 8 & 0xFF));
+}
+
+enum class Mod
+{
+	Memory = 0b00000000,
+	MemoryWith8bitDisplacement = 0b01000000,
+	MemoryWith16bitDisplacement = 0b10000000,
+	Register = 0b11000000,
+};
+
+Byte GetRegisterCode(Register reg)
+{
+	switch (reg)
+	{
+	case Register::AL:
+	case Register::AX:
+		return 0;
+	case Register::CL:
+	case Register::CX:
+		return 1;
+	case Register::DL:
+	case Register::DX:
+		return 2;
+	case Register::BL:
+	case Register::BX:
+		return 3;
+	case Register::AH:
+	case Register::SP:
+		return 4;
+	case Register::CH:
+	case Register::BP:
+		return 5;
+	case Register::DH:
+	case Register::SI:
+		return 6;
+	case Register::BH:
+	case Register::DI:
+		return 7;
+	default:
+		return 255;
+	}
+}
+
+Byte GetSegmentRegisterCode(Register reg)
+{
+	switch (reg)
+	{
+	case Register::ES:
+		return 0;
+	case Register::CS:
+		return 1;
+	case Register::SS:
+		return 2;
+	case Register::DS:
+		return 3;
+	default:
+		return 255;
+	}
+}
+
+Byte EncodeModRM(Mod mod, uint8 reg, uint8 rm)
+{
+	return static_cast<Byte>(mod) | ((reg & 0b111) << 3) | (rm & 0b111);
+}
+
+Bytes EncodeInstruction(const std::string& mnemonic, const std::vector<Operand>& operands)
+{
+	Bytes binary;
+	if (mnemonic == "mov")
+	{
+		if (operands.size() != 2)
+		{
+			throw std::runtime_error("mov指令需要两个操作数");
+		}
+		const Operand& destination = operands[0];
+		const Operand& source = operands[1];
+		if (destination.type == OperandType::Register && source.type == OperandType::Register)
+		{
+			if (Is8bitRegister(destination.reg) && Is8bitRegister(source.reg))
+			{
+				EmitByte(binary, 0x8A);
+				EmitByte(binary, EncodeModRM(Mod::Register, GetRegisterCode(destination.reg), GetRegisterCode(source.reg)));
+			}
+			else if (Is16bitRegister(destination.reg) && Is16bitRegister(source.reg))
+			{
+				EmitByte(binary, 0x8B);
+				EmitByte(binary, EncodeModRM(Mod::Register, GetRegisterCode(destination.reg), GetRegisterCode(source.reg)));
+			}
+			else if (destination.reg != Register::CS && IsSegmentRegister(destination.reg) && Is16bitRegister(source.reg))
+			{
+				EmitByte(binary, 0x8E);
+				EmitByte(binary, EncodeModRM(Mod::Register, GetSegmentRegisterCode(destination.reg), GetRegisterCode(source.reg)));
+			}
+			else if (Is16bitRegister(destination.reg) && IsSegmentRegister(source.reg))
+			{
+				EmitByte(binary, 0x8C);
+				EmitByte(binary, EncodeModRM(Mod::Register, GetSegmentRegisterCode(source.reg), GetRegisterCode(destination.reg)));
+			}
+			else
+			{
+				throw std::runtime_error("mov指令操作数非法");
+			}
+		}
+		else if (destination.type == OperandType::Register && source.type == OperandType::Immediate)
+		{
+			if (Is8bitRegister(destination.reg))
+			{
+				EmitByte(binary, 0xB0 | GetRegisterCode(destination.reg));
+				EmitByte(binary, static_cast<Byte>(source.immediate));
+			}
+			else if (Is16bitRegister(destination.reg))
+			{
+				EmitByte(binary, 0xB8 | GetRegisterCode(destination.reg));
+				EmitWord(binary, source.immediate);
+			}
+			else
+			{
+				throw std::runtime_error("mov指令操作数非法");
+			}
+		}
+		else
+		{
+			throw std::runtime_error("mov指令操作数非法");
+		}
+	}
+	return binary;
+}
+
 int main(int argc, char** argv)
 {
 	uint8 errorCode = ParseCommand(argc, argv);
+	if (errorCode != 0)
+	{
+		return errorCode;
+	}
 	if (inputFileName.empty())
 	{
 		std::cerr << "无输入文件" << std::endl;
@@ -310,8 +497,8 @@ int main(int argc, char** argv)
 		return ErrorCode::NoInput;
 	}
 
-	std::vector<Operand> operands;
 	std::string line;
+	std::vector<Bytes> binary;
 	while (std::getline(ifs, line))
 	{
 		/* vvv 去除注释 vvv */
@@ -350,17 +537,30 @@ int main(int argc, char** argv)
 		std::string mnemonic = tokens[0];
 		tokens.erase(tokens.begin());
 
+		std::vector<Operand> operands;
 		for (const auto& token : tokens)
 		{
 			operands.push_back(ParseOperand(token));
 		}
+
+		for (const auto& operand : operands)
+		{
+			std::cout << GetOperandTypeName(operand.type) << ' ' << (operand.type == OperandType::Register ? GetRegisterName(operand.reg) : std::to_string(operand.immediate));
+			std::cout << std::endl;
+		}
+		binary.push_back(EncodeInstruction(mnemonic, operands));
 	}
 
-	for (const auto& operand : operands)
+	std::ofstream ofs{outputFileName, std::ios::binary};
+	if (ofs.is_open())
 	{
-		std::cout << GetOperandTypeName(operand.type) << ' ' << (operand.type == OperandType::Register ? GetRegisterName(operand.reg) : std::to_string(operand.immediate));
-		std::cout << std::endl;
+		for (const auto& bytes : binary)
+		{
+			for (const auto& byte : bytes)
+			{
+				ofs << byte;
+			}
+		}
 	}
-
 	return errorCode;
 }
