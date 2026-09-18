@@ -1,3 +1,5 @@
+nop
+
 mov		ax, cs
 mov		ds, ax
 mov		es, ax
