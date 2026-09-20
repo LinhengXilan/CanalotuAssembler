@@ -1,15 +1,12 @@
 /**
  * @file Types.h
  * @author LinhengXilan
- * @version 0.0.0.4
- * @date 2026-9-16
+ * @version 0.0.0.6
+ * @date 2026-9-20
  */
 
-#ifndef TYPES_H
-#define TYPES_H
-
-#include <cstdint>
-#include <vector>
+#ifndef _TYPES_H_
+#define _TYPES_H_
 
 using int8 = int8_t;
 using int16 = int16_t;

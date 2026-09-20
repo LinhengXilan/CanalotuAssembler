@@ -1,92 +1,14 @@
 /**
  * @file Main.cpp
  * @author LinhengXilan
- * @version 0.0.0.5
- * @date 2026-9-18
+ * @version 0.0.0.6
+ * @date 2026-9-20
  */
 
+#include <Pch.h>
 #include <Types.h>
-#include <fstream>
-#include <iostream>
-#include <map>
-#include <string>
-#include <vector>
-
 #include <Register.h>
-
-namespace
-{
-	void PrintHelp()
-	{
-		std::cout << "用法: clasm 输入文件名 [选项]\n"
-				  << "示例: clasm Example.asm -o Example.bin\n"
-				  << "-h 显示此帮助信息\n"
-				  << "-o <文件名> 指定输出文件名\n"
-				  << "-v 显示版本信息\n";
-	}
-
-	void PrintVersion()
-	{
-		std::cout << "Version 0.0.0 Build4" << std::endl;
-	}
-} // namespace
-
-namespace ErrorCode
-{
-	constexpr uint8 InvalidOption = 1;
-	constexpr uint8 NoInput = 2;
-} // namespace ErrorCode
-
-std::string inputFileName;
-std::string outputFileName;
-
-static uint8 ParseCommand(int argc, char** argv)
-{
-	for (int i = 1; i < argc; i++)
-	{
-		if (argv[i][0] == '-')
-		{
-			switch (argv[i][1])
-			{
-			case 'h':
-				if (argv[i][2] != '\0')
-				{
-					std::cerr << "未知选项: " << argv[i] << std::endl;
-					return ErrorCode::InvalidOption;
-				}
-				PrintHelp();
-				break;
-			case 'o':
-				if (i + 1 < argc)
-				{
-					outputFileName = argv[++i];
-				}
-				else
-				{
-					std::cerr << "-o 没有参数: " << argv[i] << std::endl;
-					return ErrorCode::InvalidOption; 
-				}
-				break;
-			case 'v':
-				if (argv[i][2] != '\0')
-				{
-					std::cerr << "未知选项: " << argv[i] << std::endl;
-					return ErrorCode::InvalidOption;
-				}
-				PrintVersion();
-				break;
-			default:
-				std::cerr << "未知选项: " << argv[i] << std::endl;
-				return ErrorCode::InvalidOption;
-			}
-		}
-		else
-		{
-			inputFileName = argv[i];
-		}
-	}
-	return 0;
-}x
+#include <CommandLine.h>
 
 enum class OperandType : uint8
 {
@@ -117,7 +39,7 @@ std::string GetOperandTypeName(const OperandType& type)
 	default:
 		return "Unknown OperandType";
 	}
-}xa
+}
 
 /**
  * @brief 将一行汇编拆分成token
@@ -270,56 +192,6 @@ enum class Mod
 	Register = 0b11000000,
 };
 
-Byte GetRegisterCode(Register reg)
-{
-	switch (reg)
-	{
-	case Register::AL:
-	case Register::AX:
-		return 0;
-	case Register::CL:
-	case Register::CX:
-		return 1;
-	case Register::DL:
-	case Register::DX:
-		return 2;
-	case Register::BL:
-	case Register::BX:
-		return 3;
-	case Register::AH:
-	case Register::SP:
-		return 4;
-	case Register::CH:
-	case Register::BP:
-		return 5;
-	case Register::DH:
-	case Register::SI:
-		return 6;
-	case Register::BH:
-	case Register::DI:
-		return 7;
-	default:
-		return 255;
-	}
-}
-
-Byte GetSegmentRegisterCode(Register reg)
-{
-	switch (reg)
-	{
-	case Register::ES:
-		return 0;
-	case Register::CS:
-		return 1;
-	case Register::SS:
-		return 2;
-	case Register::DS:
-		return 3;
-	default:
-		return 255;
-	}
-}
-
 Byte EncodeModRM(Mod mod, uint8 reg, uint8 rm)
 {
 	return static_cast<Byte>(mod) | ((reg & 0b111) << 3) | (rm & 0b111);
@@ -390,20 +262,21 @@ Bytes EncodeInstruction(const std::string& mnemonic, const std::vector<Operand>&
 
 int main(int argc, char** argv)
 {
-	uint8 errorCode = ParseCommand(argc, argv);
+	CommandOption option;
+	uint8 errorCode = ParseCommand(argc, argv, option);
 	if (errorCode != 0)
 	{
 		return errorCode;
 	}
-	if (inputFileName.empty())
+	if (option.inputFileName.empty())
 	{
 		std::cerr << "无输入文件" << std::endl;
 		return ErrorCode::NoInput;
 	}
-	std::ifstream ifs{inputFileName};
+	std::ifstream ifs{option.inputFileName};
 	if (!ifs.is_open())
 	{
-		std::cerr << "错误: 无法打开文件" << inputFileName << std::endl;
+		std::cerr << "错误: 无法打开文件" << option.inputFileName << std::endl;
 		return ErrorCode::NoInput;
 	}
 
@@ -461,7 +334,7 @@ int main(int argc, char** argv)
 		binary.push_back(EncodeInstruction(mnemonic, operands));
 	}
 
-	std::ofstream ofs{outputFileName, std::ios::binary};
+	std::ofstream ofs{option.outputFileName, std::ios::binary};
 	if (ofs.is_open())
 	{
 		for (const auto& bytes : binary)
