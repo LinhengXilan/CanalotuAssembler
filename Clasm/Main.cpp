@@ -1,14 +1,15 @@
-/**
+﻿/**
  * @file Main.cpp
  * @author LinhengXilan
- * @version 0.0.0.6
- * @date 2026-9-20
+ * @version 0.0.0.7
+ * @date 2026-10-2
  */
 
 #include <Pch.h>
-#include <Types.h>
-#include <Register.h>
 #include <CommandLine.h>
+#include <Instruction.h>
+#include <Register.h>
+#include <Types.h>
 
 enum class OperandType : uint8
 {
@@ -167,7 +168,6 @@ Operand ParseOperand(const std::string& token)
 	{
 		operand.type = OperandType::Immediate;
 		operand.immediate = immediate;
-		std::cout << "immediate: " << immediate << std::endl;
 		return operand;
 	}
 	throw std::runtime_error("未知操作数: " + token);
@@ -186,77 +186,169 @@ void EmitWord(Bytes& out, Word value)
 
 enum class Mod
 {
-	Memory = 0b00000000,
-	MemoryWith8bitDisplacement = 0b01000000,
-	MemoryWith16bitDisplacement = 0b10000000,
-	Register = 0b11000000,
+	Memory = 0b00,
+	MemoryWith8bitDisplacement = 0b01,
+	MemoryWith16bitDisplacement = 0b10,
+	Register = 0b11,
 };
 
 Byte EncodeModRM(Mod mod, uint8 reg, uint8 rm)
 {
-	return static_cast<Byte>(mod) | ((reg & 0b111) << 3) | (rm & 0b111);
+	return static_cast<Byte>(static_cast<uint8>(mod) << 6) | ((reg & 0b111) << 3) | (rm & 0b111);
+}
+
+bool MatchOperandCategory(uint32 category, const Operand& operand)
+{
+	switch (operand.type)
+	{
+	case OperandType::Register:
+		if (IsSegmentRegister(operand.reg))
+		{
+			return (category & OperandCategory::Sreg) != 0;
+		}
+		else if (Is8bitRegister(operand.reg))
+		{
+			return (category & OperandCategory::Reg8) != 0;
+		}
+		else if (Is16bitRegister(operand.reg))
+		{
+			return (category & OperandCategory::Reg16) != 0;
+		}
+		return false;
+	case OperandType::Immediate:
+		return (category & OperandCategory::Immediate) != 0;
+	case OperandType::Memory:
+		return (category & OperandCategory::Memory) != 0;
+	default:
+		return false;
+	}
+}
+
+const Instruction* MatchInstruction(const std::string& mnemonic, const std::vector<Operand>& operands)
+{
+	for (const auto& instruction : InstructionTable)
+	{
+		if (mnemonic != instruction.mnemonic)
+		{
+			continue;
+		}
+		usize nrWantedOperand = 0;
+		if (instruction.operand1 != OperandCategory::None)
+		{
+			nrWantedOperand = 2;
+		}
+		else if (instruction.operand0 != OperandCategory::None)
+		{
+			nrWantedOperand = 1;
+		}
+		if (nrWantedOperand != operands.size())
+		{
+			continue;
+		}
+		if (nrWantedOperand > 0 && !MatchOperandCategory(instruction.operand0, operands[0]))
+		{
+			continue;
+		}
+		if (nrWantedOperand > 1 && !MatchOperandCategory(instruction.operand1, operands[1]))
+		{
+			continue;
+		}
+		return &instruction;
+	}
+	return nullptr;
 }
 
 Bytes EncodeInstruction(const std::string& mnemonic, const std::vector<Operand>& operands)
 {
 	Bytes binary;
-	if (mnemonic == "mov")
+
+	/* vvv opcode vvv */
+	const Instruction* instruction = MatchInstruction(mnemonic, operands);
+	Byte opcode = instruction->opcode;
+	if (instruction->flags & EncodingFlag::OpcodePlusReg)
 	{
-		if (operands.size() != 2)
+		opcode |= GetGeneralRegisterCode(operands[0].reg);
+	}
+	else if (instruction->flags & EncodingFlag::SregShift)
+	{
+		opcode |= static_cast<Byte>(GetSegmentRegisterCode(operands[0].reg) << 3);
+	}
+
+	EmitByte(binary, opcode);
+
+	/* vvv ModRM vvv */
+	if (instruction->flags & EncodingFlag::ModRM)
+	{
+		uint8 regField = 0;
+		const Operand* rmOperand = nullptr;
+
+		if (instruction->flags & EncodingFlag::RegFromOperand0)
 		{
-			throw std::runtime_error("mov指令需要两个操作数");
+			regField = GetAnyRegisterCode(operands[0].reg);
+			rmOperand = &operands[1];
 		}
-		const Operand& destination = operands[0];
-		const Operand& source = operands[1];
-		if (destination.type == OperandType::Register && source.type == OperandType::Register)
+		else if (instruction->flags & EncodingFlag::RegFromOperand1)
 		{
-			if (Is8bitRegister(destination.reg) && Is8bitRegister(source.reg))
+			regField = GetAnyRegisterCode(operands[1].reg);
+			rmOperand = &operands[0];
+		}
+		else if (instruction->flags & EncodingFlag::FixedReg)
+		{
+			regField = instruction->fixedReg;
+			for (const auto& operand : operands)
 			{
-				EmitByte(binary, 0x8A);
-				EmitByte(binary, EncodeModRM(Mod::Register, GetRegisterCode(destination.reg), GetRegisterCode(source.reg)));
-			}
-			else if (Is16bitRegister(destination.reg) && Is16bitRegister(source.reg))
-			{
-				EmitByte(binary, 0x8B);
-				EmitByte(binary, EncodeModRM(Mod::Register, GetRegisterCode(destination.reg), GetRegisterCode(source.reg)));
-			}
-			else if (destination.reg != Register::CS && IsSegmentRegister(destination.reg) && Is16bitRegister(source.reg))
-			{
-				EmitByte(binary, 0x8E);
-				EmitByte(binary, EncodeModRM(Mod::Register, GetSegmentRegisterCode(destination.reg), GetRegisterCode(source.reg)));
-			}
-			else if (Is16bitRegister(destination.reg) && IsSegmentRegister(source.reg))
-			{
-				EmitByte(binary, 0x8C);
-				EmitByte(binary, EncodeModRM(Mod::Register, GetSegmentRegisterCode(source.reg), GetRegisterCode(destination.reg)));
-			}
-			else
-			{
-				throw std::runtime_error("mov指令操作数非法");
+				if (operand.type != OperandType::Immediate)
+				{
+					rmOperand = &operand;
+					break; 
+				}
 			}
 		}
-		else if (destination.type == OperandType::Register && source.type == OperandType::Immediate)
+
+		if (rmOperand->type == OperandType::Register)
 		{
-			if (Is8bitRegister(destination.reg))
-			{
-				EmitByte(binary, 0xB0 | GetRegisterCode(destination.reg));
-				EmitByte(binary, static_cast<Byte>(source.immediate));
-			}
-			else if (Is16bitRegister(destination.reg))
-			{
-				EmitByte(binary, 0xB8 | GetRegisterCode(destination.reg));
-				EmitWord(binary, source.immediate);
-			}
-			else
-			{
-				throw std::runtime_error("mov指令操作数非法");
-			}
+			EmitByte(binary, EncodeModRM(Mod::Register, regField, GetGeneralRegisterCode(rmOperand->reg)));
+		}
+		else if(rmOperand->type == OperandType::Memory)
+		{
+			// TODO: 内存操作数编码
+			throw std::runtime_error("暂不支持内存操作数");
 		}
 		else
 		{
-			throw std::runtime_error("mov指令操作数非法");
+			// TODO: 报错
+			throw std::runtime_error("不支持的操作数类型");
+		}
+		return binary;
+	}
+
+	/* vvv immediate vvv */
+	if (instruction->flags & (EncodingFlag::Immediate8 | EncodingFlag::Immediate16))
+	{
+		const Operand* immOperand = nullptr;
+		for (const auto& operand : operands)
+		{
+			if (operand.type == OperandType::Immediate)
+			{
+				immOperand = &operand;
+				break;
+			}
+		}
+		if (immOperand == nullptr)
+		{
+			throw std::runtime_error("缺少立即数操作数");
+		}
+
+		if (instruction->flags & EncodingFlag::Immediate8)
+		{
+			EmitByte(binary, static_cast<Byte>(immOperand->immediate));
+		}
+		else
+		{
+			EmitWord(binary, immOperand->immediate);
 		}
 	}
+
 	return binary;
 }
 
@@ -273,11 +365,18 @@ int main(int argc, char** argv)
 		std::cerr << "无输入文件" << std::endl;
 		return ErrorCode::NoInput;
 	}
-	std::ifstream ifs{option.inputFileName};
+	std::ifstream ifs{ option.inputFileName, std::ios::binary };
 	if (!ifs.is_open())
 	{
 		std::cerr << "错误: 无法打开文件" << option.inputFileName << std::endl;
 		return ErrorCode::NoInput;
+	}
+	// 跳过 UTF-8 BOM
+	if (ifs.peek() == 0xEF)
+	{
+		ifs.get();
+		if (ifs.peek() == 0xBB) ifs.get();
+		if (ifs.peek() == 0xBF) ifs.get();
 	}
 
 	std::string line;
@@ -312,11 +411,6 @@ int main(int argc, char** argv)
 			continue;
 		}
 
-		for (auto& token : tokens)
-		{
-			std::cout << token << ' ';
-		}
-		std::cout << std::endl;
 		std::string mnemonic = tokens[0];
 		tokens.erase(tokens.begin());
 
@@ -326,24 +420,30 @@ int main(int argc, char** argv)
 			operands.push_back(ParseOperand(token));
 		}
 
-		for (const auto& operand : operands)
-		{
-			std::cout << GetOperandTypeName(operand.type) << ' ' << (operand.type == OperandType::Register ? GetRegisterName(operand.reg) : std::to_string(operand.immediate));
-			std::cout << std::endl;
-		}
 		binary.push_back(EncodeInstruction(mnemonic, operands));
 	}
 
-	std::ofstream ofs{option.outputFileName, std::ios::binary};
-	if (ofs.is_open())
+	Bytes out;
+	for (const auto& bytes : binary)
 	{
-		for (const auto& bytes : binary)
+		for (const auto& byte : bytes)
 		{
-			for (const auto& byte : bytes)
-			{
-				ofs << byte;
-			}
+			out.push_back(byte);
 		}
 	}
+
+	out.resize(510, 0);
+	out.push_back(0x55);
+	out.push_back(0xAA);
+
+	std::ofstream ofs{ option.outputFileName, std::ios::binary };
+	if (ofs.is_open())
+	{
+		for (const auto& byte : out)
+		{
+			ofs << byte;
+		}
+	}
+
 	return errorCode;
 }

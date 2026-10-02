@@ -1,12 +1,15 @@
-/**
+﻿/**
  * @file Types.h
  * @author LinhengXilan
- * @version 0.0.0.6
- * @date 2026-9-20
+ * @version 0.0.0.7
+ * @date 2026-10-2
  */
 
 #ifndef _TYPES_H_
 #define _TYPES_H_
+
+#include <cstdint>
+#include <vector>
 
 using int8 = int8_t;
 using int16 = int16_t;
@@ -22,4 +25,10 @@ using Byte = uint8;
 using Word = uint16;
 
 using Bytes = std::vector<Byte>;
+
+constexpr uint32 BIT(uint8 i)
+{
+	return 1u << i;
+}
+
 #endif

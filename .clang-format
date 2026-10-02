@@ -2,7 +2,7 @@
 Language: Cpp
 BasedOnStyle: Microsoft
 IndentPPDirectives: BeforeHash	# 宏缩进
-ColumnLimit: 300	# 单行列数限制
+ColumnLimit: 0	# 单行列数限制
 PointerAlignment: Left	# 指针符号对齐
 ReferenceAlignment: Left	# 引用符号对齐
 NamespaceIndentation: All	# 命名空间内缩进
@@ -14,3 +14,14 @@ AccessModifierOffset: -4	# 访问修饰符相对 class 的缩进偏移量
 AlignTrailingComments: false	# 不对齐///<
 TabWidth: 4	# Tab 宽度
 AllowShortFunctionsOnASingleLine: None	# 不要把短函数压缩在一行
+AlignArrayOfStructures: None
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true      # 函数大括号另起一行
+  AfterClass: true         # 类大括号另起一行
+  AfterControlStatement: true  # if/for/while 换行
+  AfterEnum: true          # 枚举大括号另起一行
+  AfterStruct: true        # 结构体大括号另起一行
+  BeforeElse: true         # else 前换行
+  BeforeCatch: true        # catch 前换行
+Cpp11BracedListStyle: false

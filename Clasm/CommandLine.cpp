@@ -1,8 +1,8 @@
-/**
+﻿/**
  * @file CommandLine.cpp
  * @author LinhengXilan
- * @version 0.0.0.6
- * @date 2026-9-20
+ * @version 0.0.0.7
+ * @date 2026-10-2
  */
 
 #include <Pch.h>
@@ -19,7 +19,7 @@ void PrintHelp()
 
 void PrintVersion()
 {
-	std::cout << "Version 0.0.0 Build6" << std::endl;
+	std::cout << "Version 0.0.0 Build7" << std::endl;
 }
 
 uint8 ParseCommand(int argc, char** argv, CommandOption& option)

@@ -1,26 +1,36 @@
-/**
+﻿/**
  * @file Register.cpp
  * @author LinhengXilan
- * @version 0.0.0.6
- * @date 2026-9-20
+ * @version 0.0.0.7
+ * @date 2026-10-2
  */
 
 #include <Pch.h>
 #include <Register.h>
 
+const RegisterInfo& GetRegisterInfo(Register reg)
+{
+	return RegisterTable[static_cast<uint8>(reg)];
+}
+
 bool Is8bitRegister(Register reg)
 {
-	return reg >= Register::AL && reg <= Register::BH;
+	return GetRegisterInfo(reg).size == RegisterSize::Bit8;
 }
 
 bool Is16bitRegister(Register reg)
 {
-	return reg >= Register::AX && reg <= Register::DI;
+	return GetRegisterInfo(reg).size == RegisterSize::Bit16;
+}
+
+bool IsGeneralRegister(Register reg)
+{
+	return GetRegisterInfo(reg).type == RegisterType::General;
 }
 
 bool IsSegmentRegister(Register reg)
 {
-	return reg >= Register::ES && reg <= Register::DS;
+	return GetRegisterInfo(reg).type == RegisterType::Segment;
 }
 
 std::string GetRegisterName(Register reg)
@@ -72,7 +82,7 @@ std::string GetRegisterName(Register reg)
 	}
 }
 
-Byte GetRegisterCode(Register reg)
+Byte GetGeneralRegisterCode(Register reg)
 {
 	switch (reg)
 	{
@@ -101,6 +111,7 @@ Byte GetRegisterCode(Register reg)
 	case Register::DI:
 		return 7;
 	default:
+		//TODO: 报错信息
 		return 255;
 	}
 }
@@ -118,6 +129,24 @@ Byte GetSegmentRegisterCode(Register reg)
 	case Register::DS:
 		return 3;
 	default:
+		//TODO: 报错信息
+		return 255;
+	}
+}
+
+Byte GetAnyRegisterCode(Register reg)
+{
+	if (IsGeneralRegister(reg))
+	{
+		return GetGeneralRegisterCode(reg);
+	}
+	else if (IsSegmentRegister(reg))
+	{
+		return GetSegmentRegisterCode(reg);
+	}
+	else
+	{
+		//TODO: 报错信息
 		return 255;
 	}
 }
