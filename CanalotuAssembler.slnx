@@ -4,7 +4,6 @@
   </Configurations>
   <Folder Name="/Example/" />
   <Folder Name="/Example/1/">
-    <File Path="Example/1/clasm.img" />
     <File Path="Example/1/Main.asm" />
     <File Path="Example/1/Main.bin" />
     <File Path="Example/1/nasm.bin" />

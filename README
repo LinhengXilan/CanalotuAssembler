@@ -1,6 +1,8 @@
-# CanalotuAssembler
+﻿# CanalotuAssembler
 
-汇编器，当前目标为支持16位x86汇编
+汇编器，当前目标为支持8086汇编
+
+生成的指令使用bochs-3.1验证
 
 # License:
 GPLv3

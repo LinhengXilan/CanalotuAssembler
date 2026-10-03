@@ -1,8 +1,8 @@
 ﻿/**
  * @file Main.cpp
  * @author LinhengXilan
- * @version 0.0.0.7
- * @date 2026-10-2
+ * @version 0.0.0.8
+ * @date 2026-10-3
  */
 
 #include <Pch.h>
@@ -13,18 +13,23 @@
 
 enum class OperandType : uint8
 {
+	None,
 	Register,
 	Immediate,
-	Memory
+	Memory,
+
 };
 
 struct Operand
 {
-	OperandType type;
-	union {
-		Register reg;
-		Word immediate = 0;
-	};
+	OperandType type = OperandType::None;
+	Register reg = Register::None;
+	Word immediate = 0;
+	Word memory = 0;
+	Register memoryBase = Register::None;
+	Register memoryIndex = Register::None;
+	Word displacement = 0;
+	bool hasDisplacement = false;
 };
 
 std::string GetOperandTypeName(const OperandType& type)
@@ -51,13 +56,22 @@ std::vector<std::string> Tokenize(const std::string& line)
 {
 	std::vector<std::string> tokens;
 	std::string token;
+	uint8 depth = 0;
 	for (auto& ch : line)
 	{
 		if (ch == ';')
 		{
 			break;
 		}
-		if (ch == ' ' || ch == ',' || ch == '\t')
+		if (ch == '[')
+		{
+			depth++;
+		}
+		if (ch == ']')
+		{
+			depth--;
+		}
+		if (depth == 0 && (ch == ' ' || ch == ',' || ch == '\t'))
 		{
 			if (!token.empty())
 			{
@@ -69,6 +83,10 @@ std::vector<std::string> Tokenize(const std::string& line)
 		{
 			token.push_back(ch);
 		}
+	}
+	if (depth != 0)
+	{
+		std::runtime_error("非法内存操作数 ");
 	}
 	if (!token.empty())
 	{
@@ -156,6 +174,23 @@ bool ParseImmediate(const std::string& str, Word& value)
 Operand ParseOperand(const std::string& token)
 {
 	Operand operand;
+
+	if (token.size() > 2 && token.front() == '[' && token.back() == ']')
+	{
+		std::string addressStr = token.substr(1, token.size() - 2);
+		Word address = 0;
+		if (ParseImmediate(addressStr, address))
+		{
+			operand.type = OperandType::Memory;
+			operand.memory = address;
+			return operand;
+		}
+		else
+		{
+			throw std::runtime_error("未知内存操作数: " + token);
+		}
+	}
+
 	auto it = RegisterMap.find(token);
 	if (it != RegisterMap.end())
 	{
@@ -163,13 +198,13 @@ Operand ParseOperand(const std::string& token)
 		operand.reg = it->second;
 		return operand;
 	}
-	Word immediate;
-	if (ParseImmediate(token, immediate))
+
+	if (ParseImmediate(token, operand.immediate))
 	{
 		operand.type = OperandType::Immediate;
-		operand.immediate = immediate;
 		return operand;
 	}
+
 	throw std::runtime_error("未知操作数: " + token);
 }
 
@@ -311,8 +346,8 @@ Bytes EncodeInstruction(const std::string& mnemonic, const std::vector<Operand>&
 		}
 		else if(rmOperand->type == OperandType::Memory)
 		{
-			// TODO: 内存操作数编码
-			throw std::runtime_error("暂不支持内存操作数");
+			EmitByte(binary, EncodeModRM(Mod::Memory, regField, 0b110));
+			EmitWord(binary, rmOperand->memory);
 		}
 		else
 		{
@@ -322,7 +357,7 @@ Bytes EncodeInstruction(const std::string& mnemonic, const std::vector<Operand>&
 		return binary;
 	}
 
-	/* vvv immediate vvv */
+	/* vvv 立即数 vvv */
 	if (instruction->flags & (EncodingFlag::Immediate8 | EncodingFlag::Immediate16))
 	{
 		const Operand* immOperand = nullptr;
@@ -348,6 +383,7 @@ Bytes EncodeInstruction(const std::string& mnemonic, const std::vector<Operand>&
 			EmitWord(binary, immOperand->immediate);
 		}
 	}
+
 
 	return binary;
 }
