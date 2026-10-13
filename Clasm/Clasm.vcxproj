@@ -96,6 +96,7 @@
   <ItemGroup>
     <ClCompile Include="CommandLine.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="Operand.cpp" />
     <ClCompile Include="Pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pch.h</PrecompiledHeaderFile>
@@ -107,6 +108,7 @@
   <ItemGroup>
     <ClInclude Include="CommandLine.h" />
     <ClInclude Include="Instruction.h" />
+    <ClInclude Include="Operand.h" />
     <ClInclude Include="Pch.h" />
     <ClInclude Include="Register.h" />
     <ClInclude Include="Types.h" />

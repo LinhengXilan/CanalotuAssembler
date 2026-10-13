@@ -1,8 +1,8 @@
-﻿/**
+/**
  * @file Main.cpp
  * @author LinhengXilan
- * @version 0.0.0.8
- * @date 2026-10-3
+ * @version 0.0.0.9
+ * @date 2026-10-13
  */
 
 #include <Pch.h>
@@ -10,42 +10,7 @@
 #include <Instruction.h>
 #include <Register.h>
 #include <Types.h>
-
-enum class OperandType : uint8
-{
-	None,
-	Register,
-	Immediate,
-	Memory,
-
-};
-
-struct Operand
-{
-	OperandType type = OperandType::None;
-	Register reg = Register::None;
-	Word immediate = 0;
-	Word memory = 0;
-	Register memoryBase = Register::None;
-	Register memoryIndex = Register::None;
-	Word displacement = 0;
-	bool hasDisplacement = false;
-};
-
-std::string GetOperandTypeName(const OperandType& type)
-{
-	switch (type)
-	{
-	case OperandType::Register:
-		return "Register";
-	case OperandType::Immediate:
-		return "Immediate";
-	case OperandType::Memory:
-		return "Memory";
-	default:
-		return "Unknown OperandType";
-	}
-}
+#include <Operand.h>
 
 /**
  * @brief 将一行汇编拆分成token
@@ -86,7 +51,7 @@ std::vector<std::string> Tokenize(const std::string& line)
 	}
 	if (depth != 0)
 	{
-		std::runtime_error("非法内存操作数 ");
+		std::runtime_error("非法内存操作数");
 	}
 	if (!token.empty())
 	{
