@@ -3,10 +3,11 @@
     <Platform Name="x64" />
   </Configurations>
   <Folder Name="/Example/" />
-  <Folder Name="/Example/1/">
-    <File Path="Example/1/Main.asm" />
-    <File Path="Example/1/Main.bin" />
-    <File Path="Example/1/nasm.bin" />
+  <Folder Name="/Example/8086/">
+    <File Path="Example/8086/8086.asm" />
+    <File Path="Example/8086/Main.asm" />
+    <File Path="Example/8086/Main.bin" />
+    <File Path="Example/8086/nasm.bin" />
   </Folder>
   <Folder Name="/解决方案项/">
     <File Path=".clang-format" />

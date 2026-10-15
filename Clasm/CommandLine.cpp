@@ -1,12 +1,13 @@
-﻿/**
+/**
  * @file CommandLine.cpp
  * @author LinhengXilan
- * @version 0.0.0.8
- * @date 2026-10-3
+ * @version 0.0.0.10
+ * @date 2026-10-15
  */
 
 #include <Pch.h>
 #include <CommandLine.h>
+#include <Version.h>
 
 void PrintHelp()
 {
@@ -19,7 +20,7 @@ void PrintHelp()
 
 void PrintVersion()
 {
-	std::cout << "Version 0.0.0 Build8" << std::endl;
+	std::cout << "Version " << Version::Major << '.' << Version::Minor << '.' << Version::Patch << "Build" << Version::Build << std::endl;
 }
 
 uint8 ParseCommand(int argc, char** argv, CommandOption& option)

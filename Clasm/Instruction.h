@@ -1,8 +1,8 @@
-﻿/**
+/**
  * @file Instruction.h
  * @author LinhengXilan
- * @version 0.0.0.8
- * @date 2026-10-3
+ * @version 0.0.0.10
+ * @date 2026-10-15
  */
 
 #ifndef _INSTRUCTION_H_
@@ -38,6 +38,14 @@ namespace EncodingFlag
 	constexpr uint32 Relative8 = BIT(8);
 	constexpr uint32 Relative16 = BIT(9);
 } // namespace EncodingFlag
+
+enum class Mod
+{
+	Memory = 0b00,
+	MemoryWith8bitDisplacement = 0b01,
+	MemoryWith16bitDisplacement = 0b10,
+	Register = 0b11,
+};
 
 struct Instruction
 {

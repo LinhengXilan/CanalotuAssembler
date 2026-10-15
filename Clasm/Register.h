@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file Register.h
  * @author LinhengXilan
  * @version 0.0.0.8
@@ -82,8 +82,8 @@ enum class Register : uint8
 	DS,
 	Count
 };
+ 
 static_assert(std::size(RegisterTable) == static_cast<size_t>(Register::Count), "RegisterTable 与 Register 枚举不一致");
-
 
 const RegisterInfo& GetRegisterInfo(Register reg);
 
