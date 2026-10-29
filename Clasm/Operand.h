@@ -1,8 +1,8 @@
 /**
  * @file Operand.h
  * @author LinhengXilan
- * @version 0.0.0.9
- * @date 2026-10-13
+ * @version 0.0.1.11
+ * @date 2026-10-29
  */
 
 #ifndef _OPERAND_H_
@@ -20,12 +20,20 @@ enum class OperandType : uint8
 	Memory
 };
 
+enum class OperandSize
+{
+	None,
+	Byte,
+	Word
+};
+
 struct Operand
 {
 	OperandType type = OperandType::None;
+	OperandSize size = OperandSize::None;
 	Register reg = Register::None;
 	Word immediate = 0;
-	Word memory = 0;
+	Register segment = Register::None;
 	Register memoryBase = Register::None;
 	Register memoryIndex = Register::None;
 	Word displacement = 0;

@@ -1,8 +1,8 @@
 /**
  * @file Parse.cpp
  * @author LinhengXilan
- * @version 0.0.0.10
- * @date 2026-10-15
+ * @version 0.0.1.11
+ * @date 2026-10-29
  */
 
 #include <Pch.h>
@@ -47,7 +47,7 @@ std::vector<std::string> Tokenize(const std::string& line)
 	}
 	if (depth != 0)
 	{
-		std::runtime_error("非法内存操作数");
+		throw std::runtime_error("非法内存操作数");
 	}
 	if (!token.empty())
 	{
@@ -131,24 +131,139 @@ bool ParseImmediate(const std::string& str, Word& value)
 	}
 }
 
+bool ParseAddress(const std::string token, Operand& operand, bool sign = true)
+{
+	Word value;
+	if (ParseImmediate(token, value) && !operand.hasDisplacement)
+	{
+
+		operand.displacement = sign ? value : -value;
+		operand.hasDisplacement = true;
+		return true;
+	}
+	else
+	{
+		if (!sign)
+		{
+			//TODO: Error
+			throw std::runtime_error("寄存器前不允许负号");
+		}
+		auto it = RegisterMap.find(token);
+		if (it != RegisterMap.end())
+		{
+			switch (it->second)
+			{
+			case Register::BX:
+				if (operand.memoryBase == Register::None)
+				{
+					operand.memoryBase = Register::BX;
+					return true;
+				}
+				break;
+			case Register::BP:
+				if (operand.memoryBase == Register::None)
+				{
+					operand.memoryBase = Register::BP;
+					return true;
+				}
+				break;
+			case Register::SI:
+				if (operand.memoryIndex == Register::None)
+				{
+					operand.memoryIndex = Register::SI;
+					return true;
+				}
+				break;
+			case Register::DI:
+				if (operand.memoryIndex == Register::None)
+				{
+					operand.memoryIndex = Register::DI;
+					return true;
+				}
+				break;
+			default:
+				return false;
+			}
+		}
+	}
+	return false;
+}
+
+Operand ParseMemoryOperand(const std::string& memoryStr)
+{
+	Operand operand;
+	operand.type = OperandType::Memory;
+
+	std::string addressStr = memoryStr;
+	usize seprator = memoryStr.find(':');
+	if (seprator != std::string::npos)
+	{
+		std::string segment = memoryStr.substr(0, seprator);
+		auto it = RegisterMap.find(segment);
+		if (it != RegisterMap.end() && IsSegmentRegister(it->second))
+		{
+			operand.segment = it->second;
+			addressStr = memoryStr.substr(seprator + 1);
+		}
+		else
+		{
+			throw std::runtime_error("段寄存器错误");
+		}
+	}
+
+	std::erase_if(
+		addressStr,
+		[](char ch) {
+			return std::isspace(static_cast<uint8>(ch));
+		}
+	);
+
+	while (!addressStr.empty())
+	{
+		int sign = 0;
+		seprator = addressStr.find_last_of("+-");
+		if (seprator != std::string::npos)
+		{
+		
+			std::string token = addressStr.substr(seprator + 1);
+			usize firstSign = addressStr.find_last_not_of("+-", seprator);
+			if (firstSign == std::string::npos)
+			{
+				throw std::runtime_error("无效的内存格式");
+			}
+			std::string signStr = addressStr.substr(firstSign + 1, seprator - firstSign);
+			addressStr = addressStr.substr(0, firstSign + 1);
+			for (const auto& ch : signStr)
+			{
+				if (ch == '-')
+				{
+					sign++;
+				}
+			}
+			if (!ParseAddress(token, operand, sign % 2 == 0))
+			{
+				throw std::runtime_error("无效的内存格式");
+			}
+		}
+		else
+		{
+			if (!ParseAddress(addressStr, operand))
+			{
+				throw std::runtime_error("无效的内存格式");
+			}
+			addressStr.clear();
+		}
+	}
+	return operand;
+}
+
 Operand ParseOperand(const std::string& token)
 {
 	Operand operand;
 
 	if (token.size() > 2 && token.front() == '[' && token.back() == ']')
 	{
-		std::string addressStr = token.substr(1, token.size() - 2);
-		Word address = 0;
-		if (ParseImmediate(addressStr, address))
-		{
-			operand.type = OperandType::Memory;
-			operand.memory = address;
-			return operand;
-		}
-		else
-		{
-			throw std::runtime_error("未知内存操作数: " + token);
-		}
+		return ParseMemoryOperand(token.substr(1, token.size() - 2));
 	}
 
 	auto it = RegisterMap.find(token);
@@ -156,6 +271,14 @@ Operand ParseOperand(const std::string& token)
 	{
 		operand.type = OperandType::Register;
 		operand.reg = it->second;
+		if (Is8bitRegister(operand.reg))
+		{
+			operand.size = OperandSize::Byte;
+		}
+		else if (Is16bitRegister(operand.reg) || IsSegmentRegister(operand.reg))
+		{
+			operand.size = OperandSize::Word;
+		}
 		return operand;
 	}
 

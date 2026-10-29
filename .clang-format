@@ -6,7 +6,7 @@ ColumnLimit: 0	# 单行列数限制
 PointerAlignment: Left	# 指针符号对齐
 ReferenceAlignment: Left	# 引用符号对齐
 NamespaceIndentation: All	# 命名空间内缩进
-AlignAfterOpenBracket: AlwaysBreak	# 函数参数在左圆括号后立刻换行
+AlignAfterOpenBracket: BlockIndent	# 函数参数在左圆括号后立刻换行
 BinPackParameters: false	# 函数声明/定义的参数：false 表示要么全在同一行，要么每行一个
 BinPackArguments: false	# 函数调用的参数：同上
 UseTab: Always	# 始终使用 Tab
@@ -25,3 +25,4 @@ BraceWrapping:
   BeforeElse: true         # else 前换行
   BeforeCatch: true        # catch 前换行
 Cpp11BracedListStyle: false
+LambdaBodyIndentation: Signature

@@ -1,8 +1,8 @@
-﻿/**
+/**
  * @file Types.h
  * @author LinhengXilan
- * @version 0.0.0.7
- * @date 2026-10-2
+ * @version 0.0.1.11
+ * @date 2026-10-29
  */
 
 #ifndef _TYPES_H_
@@ -25,10 +25,5 @@ using Byte = uint8;
 using Word = uint16;
 
 using Bytes = std::vector<Byte>;
-
-constexpr uint32 BIT(uint8 i)
-{
-	return 1u << i;
-}
 
 #endif

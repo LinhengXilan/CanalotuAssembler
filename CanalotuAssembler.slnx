@@ -4,10 +4,7 @@
   </Configurations>
   <Folder Name="/Example/" />
   <Folder Name="/Example/8086/">
-    <File Path="Example/8086/8086.asm" />
-    <File Path="Example/8086/Main.asm" />
-    <File Path="Example/8086/Main.bin" />
-    <File Path="Example/8086/nasm.bin" />
+    <File Path="Example/8086/mov.asm" />
   </Folder>
   <Folder Name="/解决方案项/">
     <File Path=".clang-format" />

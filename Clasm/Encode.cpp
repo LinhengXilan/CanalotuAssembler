@@ -1,8 +1,8 @@
 /**
  * @file Encode.cpp
  * @author LinhengXilan
- * @version 0.0.0.10
- * @date 2026-10-15
+ * @version 0.0.1.11
+ * @date 2026-10-29
  */
 
 #include <Pch.h>
@@ -17,13 +17,9 @@ bool MatchOperandCategory(uint32 category, const Operand& operand)
 		{
 			return (category & OperandCategory::Sreg) != 0;
 		}
-		else if (Is8bitRegister(operand.reg))
+		else if (IsGeneralRegister(operand.reg))
 		{
-			return (category & OperandCategory::Reg8) != 0;
-		}
-		else if (Is16bitRegister(operand.reg))
-		{
-			return (category & OperandCategory::Reg16) != 0;
+			return (category & OperandCategory::Reg) != 0;
 		}
 		return false;
 	case OperandType::Immediate:
@@ -56,6 +52,7 @@ const Instruction* MatchInstruction(const std::string& mnemonic, const std::vect
 		{
 			continue;
 		}
+
 		if (nrWantedOperand > 0 && !MatchOperandCategory(instruction.operand0, operands[0]))
 		{
 			continue;
@@ -64,6 +61,21 @@ const Instruction* MatchInstruction(const std::string& mnemonic, const std::vect
 		{
 			continue;
 		}
+		if (nrWantedOperand > 0 && operands[0].size != instruction.size)
+		{
+			if (operands[0].size != OperandSize::None)
+			{
+				continue;
+			}
+		}
+		if (nrWantedOperand > 1 && operands[1].size != instruction.size)
+		{
+			if (operands[1].size != OperandSize::None)
+			{
+				continue;
+			}
+		}
+		
 		return &instruction;
 	}
 	return nullptr;
@@ -80,9 +92,105 @@ void EmitWord(Bytes& out, Word data)
 	out.push_back(static_cast<Byte>(data >> 8 & 0xFF));
 }
 
-Byte EncodeModRM(Mod mod, uint8 reg, uint8 rm)
+Byte EncodeModRM(uint8 mod, uint8 reg, uint8 rm)
 {
-	return static_cast<Byte>(static_cast<uint8>(mod) << 6) | ((reg & 0b111) << 3) | (rm & 0b111);
+	return (mod) << 6 | ((reg & 0b111) << 3) | (rm & 0b111);
+}
+
+Byte EncodeMemoryModRM(uint8 reg, const Operand& operand, OperandSize& size)
+{
+	if (operand.type != OperandType::Memory)
+	{
+		throw std::runtime_error("汇编器内部错误");
+	}
+	uint8 mod = 0;
+	int16 disp = static_cast<int16>(operand.displacement);
+	bool isDisp8 = (disp >= -128 && disp <= 127);
+	if (operand.hasDisplacement && (operand.memoryBase != Register::None || operand.memoryIndex != Register::None))
+	{
+		
+		if (isDisp8)
+		{
+			mod = 0b01;
+			size = OperandSize::Byte;
+		}
+		else
+		{
+			mod = 0b10;
+			size = OperandSize::Word;
+		}
+	}
+	else
+	{
+		mod = 0b00;
+	}
+
+	uint8 rm = 0;
+	if (operand.memoryBase == Register::BX)
+	{
+		if (operand.memoryIndex == Register::SI)
+		{
+			rm = 0b000;
+		}
+		else if (operand.memoryIndex == Register::DI)
+		{
+			rm = 0b001;
+		}
+		else
+		{
+			rm = 0b111;
+		}
+	}
+	else if (operand.memoryBase == Register::BP)
+	{
+		if (operand.memoryIndex == Register::SI)
+		{
+			rm = 0b010;
+		}
+		else if (operand.memoryIndex == Register::DI)
+		{
+			rm = 0b011;
+		}
+		else
+		{
+			if (!operand.hasDisplacement)
+			{
+				mod = 0b01;
+				size = OperandSize::Byte;
+			}
+			rm = 0b110;
+		}
+	}
+	else
+	{
+		if (operand.memoryIndex == Register::SI)
+		{
+			rm = 0b100;
+		}
+		else if (operand.memoryIndex == Register::DI)
+		{
+			rm = 0b101;
+		}
+		else
+		{
+			rm = 0b110;
+
+			if (isDisp8)
+			{
+				size = OperandSize::Byte;
+			}
+			else
+			{
+				size = OperandSize::Word;
+			}
+		}
+	}
+	if (disp == 0 && rm != 6) // TODO: rm 得先算，或者先算 rm 再定 mod
+	{
+		mod = 0b00;
+		size = OperandSize::None;
+	}
+	return EncodeModRM(mod, reg, rm);
 }
 
 Bytes EncodeInstruction(const std::string& mnemonic, const std::vector<Operand>& operands)
@@ -91,6 +199,10 @@ Bytes EncodeInstruction(const std::string& mnemonic, const std::vector<Operand>&
 
 	/* vvv opcode vvv */
 	const Instruction* instruction = MatchInstruction(mnemonic, operands);
+	if (instruction == nullptr)
+	{
+		throw std::runtime_error("无匹配指令");
+	}
 	Byte opcode = instruction->opcode;
 	if (instruction->flags & EncodingFlag::OpcodePlusReg)
 	{
@@ -132,21 +244,32 @@ Bytes EncodeInstruction(const std::string& mnemonic, const std::vector<Operand>&
 			}
 		}
 
+		if (rmOperand == nullptr)
+		{
+			throw std::runtime_error("内部错误：ModRM 缺少 r/m 操作数");
+		}
 		if (rmOperand->type == OperandType::Register)
 		{
 			EmitByte(binary, EncodeModRM(Mod::Register, regField, GetGeneralRegisterCode(rmOperand->reg)));
 		}
 		else if (rmOperand->type == OperandType::Memory)
 		{
-			EmitByte(binary, EncodeModRM(Mod::Memory, regField, 0b110));
-			EmitWord(binary, rmOperand->memory);
+			OperandSize size = OperandSize::None;
+			EmitByte(binary, EncodeMemoryModRM(regField, *rmOperand, size));
+			if (size == OperandSize::Byte)
+			{
+				EmitByte(binary, static_cast<Byte>(rmOperand->displacement));
+			}
+			else if (size == OperandSize::Word)
+			{
+				EmitWord(binary, rmOperand->displacement);
+			}
 		}
 		else
 		{
 			// TODO: 报错
 			throw std::runtime_error("不支持的操作数类型");
 		}
-		return binary;
 	}
 
 	/* vvv 立即数 vvv */
